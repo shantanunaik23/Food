@@ -68,10 +68,24 @@ export function toBaseAmount(qty: number, unit: Unit, ing: Ingredient): number {
   throw new UnitConversionError(`${ing.id}: cannot convert ${unit} to ${base}`);
 }
 
+/**
+ * Round to a precision a cook can act on. Scaling a preparation down to the
+ * fraction a dish uses produces things like 156.25 g and 0.08 bay leaves, and
+ * printing those verbatim is false precision — nobody weighs a quarter gram.
+ */
+function displayRound(n: number): number {
+  if (n >= 100) return Math.round(n);
+  if (n >= 10) return Math.round(n * 2) / 2;
+  if (n >= 1) return Math.round(n * 10) / 10;
+  return Math.round(n * 100) / 100;
+}
+
 /** Human-readable quantity for the parts list: "1 tbsp", "250 ml", "2". */
 export function formatQty(qty: number, unit: Unit): string {
-  const n = Math.round(qty * 100) / 100;
-  if (unit === 'each') return `${n}`;
-  if (unit === 'tbsp' || unit === 'tsp') return `${n} ${unit}`;
-  return `${n} ${unit}`;
+  if (unit === 'each') {
+    // A fraction of a countable thing is a scaling artefact, not an instruction.
+    if (qty > 0 && qty < 1) return qty >= 0.4 ? '½' : '<1';
+    return `${displayRound(qty)}`;
+  }
+  return `${displayRound(qty)} ${unit}`;
 }
