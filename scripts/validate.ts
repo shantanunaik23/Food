@@ -50,6 +50,16 @@ for (const b of library.bases) {
 
 // ── 2. Ingredient references resolve, and units are convertible ────────────
 function checkIngredientRefs(where: string, refs: IngredientRef[]): void {
+  // The same ingredient listed twice in one list still rolls up correctly, but
+  // it renders as two lines in the parts list and is nearly always a mistake.
+  const seenIds = new Set<string>();
+  for (const ref of refs) {
+    if (seenIds.has(ref.ingredientId)) {
+      warn(where, `lists '${ref.ingredientId}' more than once — merge the quantities`);
+    }
+    seenIds.add(ref.ingredientId);
+  }
+
   for (const ref of refs) {
     const ing = index.ingredient.get(ref.ingredientId);
     if (!ing) {

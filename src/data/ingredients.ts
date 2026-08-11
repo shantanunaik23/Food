@@ -176,6 +176,9 @@ export const ingredients: Ingredient[] = [
     shelfLifeDays: 545, defaultUnit: 'g', nutrition: { kcal: 23, proteinG: 2.4 }, gramsPerTbsp: 9, pantryPhase: 2 },
   { id: 'honey', name: 'Honey', tier: 0, category: 'sweetener', section: 'condiments',
     shelfLifeDays: 1095, defaultUnit: 'g', nutrition: { kcal: 304, proteinG: 0.3 }, gramsPerTbsp: 21, pantryPhase: 1 },
+  { id: 'mayonnaise', name: 'Mayonnaise', tier: 0, category: 'condiment', section: 'condiments',
+    shelfLifeDays: 180, defaultUnit: 'g', nutrition: { kcal: 680, proteinG: 1 }, gramsPerTbsp: 14, pantryPhase: 1,
+    note: 'Full fat. The base of every slaw and half the taco cremas.' },
 
   // ── DRY GOODS — tier 0 ───────────────────────────────────────────────────
   { id: 'sugar-caster', name: 'Caster sugar', tier: 0, category: 'dry goods', section: 'dry goods',
