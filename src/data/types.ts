@@ -113,6 +113,12 @@ export interface IngredientRef {
  */
 export interface Component {
   id: string;
+  /**
+   * Discriminator. Preparations are batched and tracked with a shelf-life
+   * countdown; bases are made to order, so an empty base never blocks a dish
+   * and its ingredients are always on the shopping list.
+   */
+  kind: 'preparation' | 'base';
   name: string;
   lane: ComponentLane;
   ingredients: IngredientRef[];
