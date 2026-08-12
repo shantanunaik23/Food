@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Dish, Lane } from '../data/types';
 import { useStore } from '../state/store';
 import { dishNutrition, round } from '../lib/nutrition';
-import { missingPreparations } from '../lib/planner';
+import { blockSeverity } from '../lib/planner';
 import { Chip, Empty, LANE_LABEL } from '../components/common';
 import { DishDetail } from '../components/DishDetail';
 
@@ -143,7 +143,7 @@ export function Dishes() {
         <div className="cards">
           {filtered.map((dish) => {
             const n = round(dishNutrition(index, dish));
-            const missing = missingPreparations(planContext, dish);
+            const severity = blockSeverity(planContext, dish);
             const newTech = dish.techniques.filter((t) => !learned.has(t));
             return (
               <article className="panel" key={dish.id}>
@@ -151,15 +151,13 @@ export function Dishes() {
                   <div className="eyebrow">
                     {LANE_LABEL[dish.lane]} · {dish.protein}
                   </div>
-                  <h3 style={{ margin: '3px 0 7px' }}>
-                    <button
-                      className="ghost"
-                      style={{ padding: 0, minHeight: 0, textAlign: 'left', fontWeight: 600 }}
-                      onClick={() => setOpen(dish)}
-                    >
-                      {dish.name}
-                    </button>
-                  </h3>
+                  <button
+                    className="ghost card-title"
+                    style={{ padding: 0, minHeight: 0, textAlign: 'left', display: 'block', margin: '3px 0 7px' }}
+                    onClick={() => setOpen(dish)}
+                  >
+                    {dish.name}
+                  </button>
 
                   <div className="day-nums" style={{ marginBottom: 7 }}>
                     <span>{n.kcal} kcal</span>
@@ -172,14 +170,19 @@ export function Dishes() {
                   <div className="row" style={{ gap: 5 }}>
                     {dish.learning && <Chip tone="accent">LEARNING</Chip>}
                     {dish.slots.includes('lunch') && <Chip glyph="❄">BATCH LUNCH</Chip>}
-                    {newTech.map((t) => (
-                      <Chip key={t} tone="accent" glyph="○">
-                        {index.technique.get(t)?.name}
+                    {newTech.length > 0 && (
+                      <Chip tone="accent" glyph="○">
+                        {newTech.length} new technique{newTech.length === 1 ? '' : 's'}
                       </Chip>
-                    ))}
-                    {missing.length > 0 && (
+                    )}
+                    {severity === 'blocked' && (
                       <Chip tone="bad" glyph="✕">
-                        {missing.length} PREP EMPTY
+                        needs restocking
+                      </Chip>
+                    )}
+                    {severity === 'todo' && (
+                      <Chip glyph="○" title="One or more preparations for this dish haven't been made yet">
+                        not made yet
                       </Chip>
                     )}
                   </div>

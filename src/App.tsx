@@ -9,14 +9,17 @@
 import { useEffect, useState } from 'react';
 import { StoreProvider, useStore } from './state/store';
 import { ThisWeek } from './views/ThisWeek';
+import { Shop } from './views/Shop';
 import { Dishes } from './views/Dishes';
 import { Blocks } from './views/Blocks';
 import { Pantry } from './views/Pantry';
 import { DataControls } from './views/DataControls';
-import { storageAvailable } from './lib/storage';
+import { hasSeenOnboarding, storageAvailable } from './lib/storage';
+import { HowThisWorks } from './components/HowThisWorks';
 
 const ROUTES = [
   { hash: '#/week', label: 'This week', view: ThisWeek },
+  { hash: '#/shop', label: 'Shop', view: Shop },
   { hash: '#/dishes', label: 'Dishes', view: Dishes },
   { hash: '#/blocks', label: 'Blocks', view: Blocks },
   { hash: '#/pantry', label: 'Pantry', view: Pantry },
@@ -38,6 +41,7 @@ function Chrome() {
   const { state, profiles, switchProfile } = useStore();
   const route = ROUTES.find((r) => r.hash === hash) ?? ROUTES[0];
   const View = route.view;
+  const [showHow, setShowHow] = useState(() => !hasSeenOnboarding());
 
   useEffect(() => {
     document.title = `${route.label} · Component Kitchen`;
@@ -61,6 +65,15 @@ function Chrome() {
               </a>
             ))}
           </nav>
+          <button
+            className="ghost"
+            style={{ fontSize: 12, minHeight: 24, padding: '0 6px' }}
+            onClick={() => setShowHow(true)}
+            title="How this works"
+            aria-label="How this works"
+          >
+            ?
+          </button>
           {profiles.length > 1 && (
             <select
               value={state.profileName}
@@ -88,6 +101,8 @@ function Chrome() {
         )}
         <View />
       </main>
+
+      {showHow && <HowThisWorks onClose={() => setShowHow(false)} />}
     </>
   );
 }

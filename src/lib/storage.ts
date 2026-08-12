@@ -95,6 +95,23 @@ export function deleteProfile(name: string): void {
   }
 }
 
+// ── One-time onboarding ─────────────────────────────────────────────────────
+
+const ONBOARDING_KEY = `${PREFIX}:onboarding-seen`;
+
+/**
+ * Device-level, not profile-level: switching profiles or importing a JSON
+ * file should never bring the explainer back, and a second profile on the
+ * same laptop doesn't need to see it again either.
+ */
+export function hasSeenOnboarding(): boolean {
+  return safeGet(ONBOARDING_KEY) === '1';
+}
+
+export function markOnboardingSeen(): void {
+  safeSet(ONBOARDING_KEY, '1');
+}
+
 /** True when the browser will actually keep anything we write. */
 export function storageAvailable(): boolean {
   const probe = `${PREFIX}:probe`;

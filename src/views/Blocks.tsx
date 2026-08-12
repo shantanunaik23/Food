@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import type { Component } from '../data/types';
 import { useStore } from '../state/store';
-import { componentState, type StockStatus } from '../state/userState';
+import { componentState, everTouched, type StockStatus } from '../state/userState';
 import { shelfLife } from '../lib/shelfLife';
 import { componentBatchNutrition, round } from '../lib/nutrition';
 import { formatQty } from '../lib/units';
@@ -61,7 +61,8 @@ function BlockCard({
   const { index, state, today } = useStore();
   const component = rec.component;
   const cs = componentState(state, component.id);
-  const shelf = shelfLife(component, cs, today);
+  const neverMade = !everTouched(state, component.id);
+  const shelf = shelfLife(component, cs, today, neverMade);
   const batchNutrition = round(componentBatchNutrition(index, component));
   const dependents = dependentDishes(index, component.id);
 
@@ -78,9 +79,9 @@ function BlockCard({
   return (
     <article className="panel">
       <header className="section-head">
-        <h3 style={{ textTransform: 'none', fontSize: 13, letterSpacing: 0 }}>
+        <span className="card-title" style={{ textTransform: 'none' }}>
           {component.name}
-        </h3>
+        </span>
         <span className="meta">
           <StatusChip shelf={shelf} />
         </span>
@@ -126,15 +127,20 @@ function BlockCard({
           </tbody>
         </table>
 
-        <div>
-          <div className="row" style={{ gap: 6, marginBottom: 4 }}>
-            <span className="eyebrow">Batch sizing</span>
-            <Chip tone={sizeTone}>{sizeLabel}</Chip>
-          </div>
-          <p className="hint mono" style={{ margin: 0, fontSize: 11, lineHeight: 1.5 }}>
-            {rec.rationale}
-          </p>
+        <div className="row" style={{ gap: 6 }}>
+          <span className="eyebrow">Batch sizing</span>
+          <Chip tone={sizeTone}>{sizeLabel}</Chip>
         </div>
+        {rec.size !== 'skip' && (
+          <details className="disclosure" style={{ margin: '-4px 0 0' }}>
+            <summary style={{ padding: '2px 0' }}>
+              <span className="quiet mono">why?</span>
+            </summary>
+            <p className="quiet mono" style={{ margin: '4px 0 0', lineHeight: 1.5 }}>
+              {rec.rationale}
+            </p>
+          </details>
+        )}
 
         <div>
           <div className="eyebrow" style={{ marginBottom: 4 }}>
@@ -167,7 +173,7 @@ function BlockCard({
 }
 
 export function Blocks() {
-  const { recommendations, index } = useStore();
+  const { recommendations } = useStore();
   const [open, setOpen] = useState<Dish | null>(null);
   const [showBases, setShowBases] = useState(false);
 
@@ -175,7 +181,7 @@ export function Blocks() {
   const bases = recommendations.filter((r) => r.component.kind === 'base');
 
   const toMake = preparations.filter((r) => r.size !== 'skip');
-  const stock = index.preparation.get('chicken-stock');
+  const stockRec = preparations.find((r) => r.componentId === 'chicken-stock');
 
   return (
     <div className="stack">
@@ -227,7 +233,7 @@ export function Blocks() {
         )}
       </Panel>
 
-      {stock && <StockNag />}
+      {stockRec && <StockNag rec={stockRec} />}
 
       <section>
         <div className="section-head" style={{ border: '1px solid var(--rule-strong)' }}>
@@ -269,33 +275,49 @@ export function Blocks() {
 
 /**
  * Chicken stock is the highest-value item in the system — it is what turns a
- * seared chop into a chop with a pan sauce — so it gets its own nag when empty.
+ * seared chop into a chop with a pan sauce — so it gets its own callout. Only
+ * when the plan actually needs it: showing this on an empty week just adds
+ * noise, and a fresh profile where it has simply never been made yet gets the
+ * calm version, not the amber "something's wrong" one.
  */
-function StockNag() {
+function StockNag({ rec }: { rec: BatchRecommendation }) {
   const { index, state, today } = useStore();
-  const stock = index.preparation.get('chicken-stock');
-  if (!stock) return null;
+  const stock = rec.component;
+  if (rec.size === 'skip') return null;
 
   const cs = componentState(state, stock.id);
-  const shelf = shelfLife(stock, cs, today);
-  if (!shelf.needsAttention) return null;
-
+  const neverMade = !everTouched(state, stock.id);
+  const shelf = shelfLife(stock, cs, today, neverMade);
   const dependents = dependentDishes(index, stock.id);
+  const dependentsPhrase = `${dependents.length} dish${dependents.length === 1 ? '' : 'es'} in the library depend on it`;
+  const timePhrase = `${stock.activeMinutes} minutes of actual work spread over ${Math.round(stock.totalMinutes / 60)} hours — make it on a weekend when you are in anyway`;
+
+  if (neverMade) {
+    return (
+      <div className="panel" style={{ padding: 12 }}>
+        <div className="row">
+          <span className="eyebrow">Worth making: chicken stock</span>
+          <StatusChip shelf={shelf} />
+        </div>
+        <p className="detail" style={{ margin: '6px 0 0' }}>
+          It's the highest-value thing in the kitchen — the difference between a seared chop and
+          one with a pan sauce. {dependentsPhrase}. {timePhrase}.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="panel" style={{ borderColor: 'var(--warn)', padding: 12 }}>
       <div className="row">
         <span className="eyebrow" style={{ color: 'var(--warn)' }}>
-          ⚠ Keystone empty
+          ⚠ Keystone running out
         </span>
         <StatusChip shelf={shelf} />
       </div>
-      <p className="prose" style={{ margin: '6px 0 0' }}>
-        <strong>Chicken stock is {shelf.label.toLowerCase()}.</strong> It is the highest-value item
-        in the kitchen and the difference between a seared chop and a chop with a pan sauce.{' '}
-        {dependents.length} dish{dependents.length === 1 ? '' : 'es'} in the library depend on it.
-        It is {stock.activeMinutes} minutes of actual work spread over{' '}
-        {Math.round(stock.totalMinutes / 60)} hours — make it on a weekend when you are in anyway.
+      <p className="detail" style={{ margin: '6px 0 0' }}>
+        <strong>Chicken stock is {shelf.label.toLowerCase()}.</strong> {dependentsPhrase}.{' '}
+        {timePhrase}.
       </p>
     </div>
   );

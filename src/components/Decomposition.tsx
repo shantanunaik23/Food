@@ -15,11 +15,11 @@
 import { useState } from 'react';
 import type { Component, Dish } from '../data/types';
 import { useStore } from '../state/store';
-import { componentState } from '../state/userState';
-import { shelfLife } from '../lib/shelfLife';
+import { componentState, everTouched } from '../state/userState';
+import { isAvailable, shelfLife } from '../lib/shelfLife';
 import { componentPerYieldUnit, ingredientLineNutrition, round, scale } from '../lib/nutrition';
 import { formatQty } from '../lib/units';
-import { StatusChip } from './common';
+import { Chip, StatusChip } from './common';
 
 function LayerKey() {
   return (
@@ -50,12 +50,16 @@ function ComponentBranch({
   const [open, setOpen] = useState(false);
 
   const cs = componentState(state, component.id);
-  const shelf = shelfLife(component, cs, today);
+  const neverMade = !everTouched(state, component.id);
+  const shelf = shelfLife(component, cs, today, neverMade);
   const nutrition = round(scale(componentPerYieldUnit(index, component), qty));
   const fraction = component.yieldAmount > 0 ? qty / component.yieldAmount : 0;
 
-  // A base is made to order, so its stock status is not a blocker.
-  const blocking = layer === 'prep' && shelf.needsAttention && shelf.state !== 'low';
+  // A base is made to order, so its stock status is not a blocker. A prep the
+  // user has simply never got round to making yet is still functionally
+  // blocking — the dish cannot be cooked — but it is not an alarm, so it gets
+  // a calmer chip than one that was stocked and has genuinely run out.
+  const functionallyBlocked = layer === 'prep' && !isAvailable(component, cs, today);
 
   return (
     <div className="decomp-node">
@@ -73,10 +77,17 @@ function ComponentBranch({
             {component.name}
           </button>
           {layer === 'prep' && <StatusChip shelf={shelf} />}
-          {blocking && (
-            <span className="chip bad" title="This dish cannot be made until this is restocked">
+          {/*
+           * When the status chip already reads "NOT MADE YET" (neutral tone),
+           * a second chip saying almost the same thing is pure duplication —
+           * the "Preparations" heading above already makes clear this is what
+           * the dish needs. Only the genuinely alarming case — stocked before,
+           * now actually empty or expired — earns a second, explanatory chip.
+           */}
+          {functionallyBlocked && shelf.tone === 'bad' && (
+            <Chip tone="bad" title="This dish cannot be made until this is restocked">
               BLOCKS THIS DISH
-            </span>
+            </Chip>
           )}
         </span>
         <span className="qty">

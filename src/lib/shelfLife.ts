@@ -41,8 +41,24 @@ export function shelfLife(
   component: Component,
   state: ComponentState,
   today: ISODate = todayISO(),
+  /**
+   * True when the user has never set a status on this preparation at all —
+   * distinct from having deliberately marked it empty. Softens the tone so a
+   * fresh profile doesn't read as broken; see state/userState.ts#everTouched.
+   */
+  neverMade = false,
 ): ShelfLife {
   if (state.status === 'empty') {
+    if (neverMade) {
+      return {
+        daysLeft: null,
+        state: 'empty',
+        glyph: '○',
+        label: 'NOT MADE YET',
+        tone: 'neutral',
+        needsAttention: false,
+      };
+    }
     return {
       daysLeft: null,
       state: 'empty',

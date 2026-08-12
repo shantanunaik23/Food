@@ -125,6 +125,20 @@ export function componentState(state: UserState, id: string): ComponentState {
   return state.components[id] ?? { status: 'empty', madeOn: null };
 }
 
+/**
+ * Has the user ever set a status on this preparation? False only on the
+ * untouched default — the moment they mark anything stocked/low/empty, an
+ * entry exists and this is true from then on.
+ *
+ * The distinction matters for tone: "empty because nobody has made it yet" on
+ * day one is normal and expected; "empty because you used the last of it" is
+ * a real, actionable fact. Treating both as the same alarming red made a
+ * brand-new profile look broken rather than merely unstarted.
+ */
+export function everTouched(state: UserState, id: string): boolean {
+  return id in state.components;
+}
+
 export function isOwned(state: UserState, ingredientId: string): boolean {
   return state.pantry[ingredientId] === true;
 }

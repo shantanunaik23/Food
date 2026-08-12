@@ -1,13 +1,15 @@
 /**
  * This Week — the home screen.
  *
- * Answers "what is the plan and what do I buy?" in one screen: seven day cards
- * with the dish, its time, its numbers and the day's secondary task; the week
- * totals against the 2300 / 150 g target; and the shopping list split into the
- * weekend shop and the midweek top-up.
+ * Answers "what's the plan tonight?" first, everything else second. The
+ * screen used to also carry the full shopping list and the full techniques
+ * table inline, which meant reading past (or scrolling through) close to 200
+ * rows before you could even see the seven day cards. Both now live one click
+ * away — Shop has its own tab, techniques collapse to a one-line summary —
+ * so the thing you open this screen for is what you see first.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useStore } from '../state/store';
 import { dishNutrition, round } from '../lib/nutrition';
 import { alternativesFor, budgetFor } from '../lib/planner';
@@ -17,7 +19,6 @@ import type { DayPlan, SecondaryTask } from '../state/userState';
 import type { Dish } from '../data/types';
 import { Chip, Empty, Metric, Panel } from '../components/common';
 import { DishDetail } from '../components/DishDetail';
-import { ShoppingList } from './ShoppingList';
 import { TechniqueProgress } from './TechniqueProgress';
 
 function TaskLine({ task }: { task: SecondaryTask }) {
@@ -41,15 +42,19 @@ function TaskLine({ task }: { task: SecondaryTask }) {
   })();
 
   return (
-    <div className="day-task">
-      <span className="kind">
-        + {task.kind.replace('-', ' ')} · {task.minutes} min
-      </span>
-      <div>{label}</div>
-      <div className="hint" style={{ marginTop: 2 }}>
+    <details className="disclosure day-task" style={{ padding: 0 }}>
+      <summary style={{ padding: 0, display: 'block' }}>
+        <span className="kind">
+          + {task.kind.replace('-', ' ')} · {task.minutes} min
+        </span>
+        <span className="detail" style={{ display: 'block', fontWeight: 600 }}>
+          {label}
+        </span>
+      </summary>
+      <p className="quiet" style={{ margin: '4px 0 0' }}>
         {task.reason}
-      </div>
-    </div>
+      </p>
+    </details>
   );
 }
 
@@ -98,33 +103,33 @@ function DayCard({
               <button onClick={() => onOpen(dinner)}>{dinner.name}</button>
             </div>
             <div className="day-nums">
-              <span>{dinner.activeMinutes}m active</span>
-              <span>{dinner.totalMinutes}m total</span>
-            </div>
-            <div className="day-nums">
+              <span>{dinner.activeMinutes}m</span>
               <span>{n?.kcal} kcal</span>
               <span>{n?.proteinG} g</span>
             </div>
             {dinner.learning && <Chip tone="accent">LEARNING</Chip>}
 
-            <div className="budget-bar" title={`${dinnerMin + taskMin} of ${budget} min used`}>
+            <div
+              className="budget-bar"
+              title={
+                left > 0
+                  ? `${dinnerMin + taskMin} of ${budget} min used — ${left} spare`
+                  : `${dinnerMin + taskMin} of ${budget} min used — budget full`
+              }
+            >
               <i className="dinner" style={{ width: `${(dinnerMin / budget) * 100}%` }} />
               <i className="task" style={{ width: `${(taskMin / budget) * 100}%` }} />
             </div>
-            <div className="hint mono" style={{ fontSize: 10.5 }}>
-              {left > 0 ? `${left} min spare` : 'budget full'}
-            </div>
 
-            <div className="hint" style={{ fontSize: 11.5 }}>
+            <div className="quiet">
               Lunch: {lunch ? lunch.name : <em>nothing banked</em>}
             </div>
 
             {day.secondaryTask ? (
               <TaskLine task={day.secondaryTask} />
             ) : (
-              <div className="day-task hint">
+              <div className="day-task quiet">
                 <span className="kind">no secondary task</span>
-                {left < 5 ? 'Dinner uses the budget' : 'Nothing needs doing'}
               </div>
             )}
 
@@ -161,53 +166,69 @@ function SwapPanel({ date, onClose }: { date: ISODate; onClose: () => void }) {
           </button>
         </header>
         <div className="modal-body">
-        <p className="hint" style={{ padding: '0 12px' }}>
-          Only dishes that fit the day&rsquo;s budget and do not repeat the protein either side.
-          Choosing one locks the day.
-        </p>
-        <table className="spec">
-          <thead>
-            <tr>
-              <th>Dish</th>
-              <th>Protein</th>
-              <th style={{ textAlign: 'right' }}>Active</th>
-              <th style={{ textAlign: 'right' }}>kcal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {options.map((dish) => {
-              const n = round(dishNutrition(index, dish));
-              return (
-                <tr key={dish.id}>
-                  <td>
-                    <button
-                      className="ghost"
-                      style={{ padding: 0, minHeight: 0, textAlign: 'left' }}
-                      onClick={() => {
-                        setDinner(date, dish.id);
-                        onClose();
-                      }}
-                    >
-                      {dish.name}
-                    </button>
-                    {dish.learning && ' ★'}
-                  </td>
-                  <td className="hint">{dish.protein}</td>
-                  <td className="n">{dish.activeMinutes}m</td>
-                  <td className="n">{n.kcal}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+          <p className="hint" style={{ padding: '0 12px' }}>
+            Only dishes that fit the day&rsquo;s budget and do not repeat the protein either side.
+            Choosing one locks the day.
+          </p>
+          <table className="spec">
+            <thead>
+              <tr>
+                <th>Dish</th>
+                <th>Protein</th>
+                <th style={{ textAlign: 'right' }}>Active</th>
+                <th style={{ textAlign: 'right' }}>kcal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {options.map((dish) => {
+                const n = round(dishNutrition(index, dish));
+                return (
+                  <tr key={dish.id}>
+                    <td>
+                      <button
+                        className="ghost"
+                        style={{ padding: 0, minHeight: 0, textAlign: 'left' }}
+                        onClick={() => {
+                          setDinner(date, dish.id);
+                          onClose();
+                        }}
+                      >
+                        {dish.name}
+                      </button>
+                      {dish.learning && ' ★'}
+                    </td>
+                    <td className="hint">{dish.protein}</td>
+                    <td className="n">{dish.activeMinutes}m</td>
+                    <td className="n">{n.kcal}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
 }
 
+/** One-line flag with the full reasoning tucked behind it, not printed by default. */
+function FlagLine({ headline, children }: { headline: string; children: ReactNode }) {
+  return (
+    <details className="disclosure" style={{ margin: 0 }}>
+      <summary style={{ padding: '6px 0 0' }}>
+        <span className="detail" style={{ fontWeight: 600 }}>
+          {headline}
+        </span>
+      </summary>
+      <p className="quiet" style={{ margin: '2px 0 6px' }}>
+        {children}
+      </p>
+    </details>
+  );
+}
+
 export function ThisWeek() {
-  const { plan, index, state, regenerate } = useStore();
+  const { plan, index, state, shoppingList, regenerate } = useStore();
   const [open, setOpen] = useState<Dish | null>(null);
   const [swapping, setSwapping] = useState<ISODate | null>(null);
 
@@ -228,16 +249,20 @@ export function ThisWeek() {
 
   const avgKcal = Math.round(totals.kcal / 7);
   const avgProtein = Math.round(totals.proteinG / 7);
+  const proteinGap = state.settings.targetProteinG - avgProtein;
   const learningCount = plan.days.filter(
     (d) => d.dinnerId && index.dish.get(d.dinnerId)?.learning,
   ).length;
   const unbankedLunches = plan.days.filter((d) => !d.lunchId).length;
 
+  const shopLines = shoppingList.totalLines;
+  const topUpLines = shoppingList.topUp.reduce((s, g) => s + g.items.length, 0);
+
   return (
     <div className="stack">
       <Panel
         title="Week totals"
-        meta={`per day, including an assumed ${state.settings.breakfastKcal} kcal breakfast`}
+        meta="per day, including an assumed breakfast"
         actions={
           <button className="primary no-print" onClick={regenerate}>
             Regenerate
@@ -246,43 +271,42 @@ export function ThisWeek() {
       >
         <div className="row" style={{ padding: 12 }}>
           <div className="metrics">
-            <Metric
-              label="avg kcal"
-              value={avgKcal}
-              short={avgKcal < state.settings.targetKcal - 200}
-            />
+            <Metric label="avg kcal" value={avgKcal} short={avgKcal < state.settings.targetKcal - 200} />
             <Metric label="target" value={state.settings.targetKcal} />
             <Metric
               label="avg protein"
               value={avgProtein}
               unit="g"
-              short={avgProtein < state.settings.targetProteinG - 10}
+              short={proteinGap > 10}
             />
             <Metric label="target" value={state.settings.targetProteinG} unit="g" />
             <Metric label="learning dishes" value={learningCount} />
           </div>
         </div>
-        {avgProtein < state.settings.targetProteinG - 10 && (
-          <p className="prose" style={{ padding: '0 12px 12px', margin: 0 }}>
-            This week lands <strong>{state.settings.targetProteinG - avgProtein} g/day short</strong>{' '}
-            of the protein target. Dinner and lunch are already carrying 45–50 g each, so the gap is
-            breakfast — closing it needs a higher-protein breakfast than the assumed{' '}
-            {state.settings.breakfastProteinG} g, not a different dinner.
-          </p>
+
+        {proteinGap > 10 && (
+          <div style={{ padding: '0 12px' }}>
+            <FlagLine headline={`⚠ ${proteinGap} g/day short of the protein target`}>
+              Dinner and lunch are already carrying 45–50 g each, so the gap is breakfast — closing
+              it needs a higher-protein breakfast than the assumed {state.settings.breakfastProteinG} g,
+              not a different dinner.
+            </FlagLine>
+          </div>
         )}
         {unbankedLunches > 0 && (
-          <p className="prose" style={{ padding: '0 12px 12px', margin: 0 }}>
-            <strong>{unbankedLunches} day{unbankedLunches === 1 ? '' : 's'}</strong> have no lunch
-            banked. Batch cooks are scheduled where the time budget allows — usually the weekend,
-            since a 30-minute weekday cannot fit a dinner and a batch.
-          </p>
+          <div style={{ padding: '0 12px 8px' }}>
+            <FlagLine headline={`${unbankedLunches} day${unbankedLunches === 1 ? '' : 's'} with no lunch banked`}>
+              Batch cooks are scheduled where the time budget allows — usually the weekend, since a
+              30-minute weekday cannot fit a dinner and a batch.
+            </FlagLine>
+          </div>
         )}
       </Panel>
 
       <section>
         <div className="section-head" style={{ border: '1px solid var(--rule-strong)', borderBottom: 0 }}>
           <h2>The week</h2>
-          <span className="meta">dish · time · numbers · secondary task</span>
+          <span className="meta">tap a dish for the full breakdown</span>
         </div>
         <div className="week" style={{ marginTop: 8 }}>
           {plan.days.map((day) => (
@@ -291,8 +315,28 @@ export function ThisWeek() {
         </div>
       </section>
 
-      <TechniqueProgress />
-      <ShoppingList />
+      <div className="row" style={{ gap: 10 }}>
+        <a
+          href="#/shop"
+          className="panel"
+          style={{
+            flex: 1,
+            minWidth: 220,
+            padding: 12,
+            textDecoration: 'none',
+            color: 'inherit',
+            display: 'block',
+          }}
+        >
+          <span className="eyebrow">Shopping list →</span>
+          <div className="detail" style={{ marginTop: 4 }}>
+            {shopLines} item{shopLines === 1 ? '' : 's'} this week
+            {topUpLines > 0 && ` · ${topUpLines} in the midweek top-up`}
+          </div>
+        </a>
+      </div>
+
+      <TechniqueProgress compact />
 
       {open && <DishDetail dish={open} onClose={() => setOpen(null)} />}
       {swapping && <SwapPanel date={swapping} onClose={() => setSwapping(null)} />}

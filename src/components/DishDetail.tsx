@@ -3,7 +3,7 @@
 import type { Dish } from '../data/types';
 import { useStore } from '../state/store';
 import { dishNutrition, round } from '../lib/nutrition';
-import { missingPreparations } from '../lib/planner';
+import { blockSeverity, missingPreparations } from '../lib/planner';
 import { Chip, LANE_LABEL, Metric } from './common';
 import { Decomposition } from './Decomposition';
 
@@ -11,6 +11,7 @@ export function DishDetail({ dish, onClose }: { dish: Dish; onClose: () => void 
   const { index, planContext, learned, markCooked, state } = useStore();
   const nutrition = round(dishNutrition(index, dish));
   const missing = missingPreparations(planContext, dish);
+  const severity = blockSeverity(planContext, dish);
   const cookedCount = state.cooked.filter((c) => c.dishId === dish.id).length;
 
   return (
@@ -46,18 +47,22 @@ export function DishDetail({ dish, onClose }: { dish: Dish; onClose: () => void 
             <Metric label="cooked" value={cookedCount} unit="×" />
           </div>
 
-          {missing.length > 0 && (
-            <div className="panel" style={{ borderColor: 'var(--bad)', padding: 10 }}>
-              <div className="eyebrow" style={{ color: 'var(--bad)' }}>
-                ✕ Blocked
+          {severity !== 'none' && (
+            <div
+              className="panel"
+              style={{ borderColor: severity === 'blocked' ? 'var(--bad)' : undefined, padding: 10 }}
+            >
+              <div className="eyebrow" style={{ color: severity === 'blocked' ? 'var(--bad)' : undefined }}>
+                {severity === 'blocked' ? '✕ Blocked' : '○ Not made yet'}
               </div>
-              <p className="prose" style={{ margin: '4px 0 0' }}>
+              <p className="detail" style={{ margin: '4px 0 0' }}>
                 Needs{' '}
                 <strong>
                   {missing.map((id) => index.component.get(id)?.name).filter(Boolean).join(', ')}
                 </strong>
-                , which {missing.length === 1 ? 'is' : 'are'} empty or past their date. Make{' '}
-                {missing.length === 1 ? 'it' : 'them'} first, or pick another dish.
+                {severity === 'blocked'
+                  ? `, which ${missing.length === 1 ? 'is' : 'are'} empty or past its date. Make ${missing.length === 1 ? 'it' : 'them'} first, or pick another dish.`
+                  : `, which ${missing.length === 1 ? "hasn't" : "haven't"} been made yet. Cook ${missing.length === 1 ? 'it' : 'them'} ahead, or pick another dish for tonight.`}
               </p>
             </div>
           )}

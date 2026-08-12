@@ -25,10 +25,10 @@
 import type { Dish } from '../data/types';
 import type { LibraryIndex } from './graph';
 import type { DayPlan, SecondaryTask, UserState, WeekPlan } from '../state/userState';
-import { componentState, freezerPortions, learnedTechniques } from '../state/userState';
+import { componentState, everTouched, freezerPortions, learnedTechniques } from '../state/userState';
 import { addDays, daysBetween, isWeekend, todayISO } from './dates';
 import type { ISODate } from './dates';
-import { isAvailable } from './shelfLife';
+import { isAvailable, shelfLife } from './shelfLife';
 import { allBatchRecommendations, type PlannedDish } from './batching';
 
 export interface PlanContext {
@@ -65,6 +65,29 @@ export function missingPreparations(ctx: PlanContext, dish: Dish): string[] {
     }
   }
   return missing;
+}
+
+/**
+ * How alarming a dish's missing preparations actually are.
+ *
+ * 'todo' — every missing prep has simply never been made yet (normal on a
+ * fresh profile, or for a dish you've never cooked). 'blocked' — at least one
+ * was stocked before and has genuinely run out or expired, which is the case
+ * worth flagging in red. Distinguishing these is what stops a brand-new
+ * profile's dish library from reading as a wall of errors.
+ */
+export type BlockSeverity = 'none' | 'todo' | 'blocked';
+
+export function blockSeverity(ctx: PlanContext, dish: Dish): BlockSeverity {
+  const missing = missingPreparations(ctx, dish);
+  if (missing.length === 0) return 'none';
+  const anyReal = missing.some((id) => {
+    const component = ctx.index.component.get(id);
+    if (!component) return false;
+    const neverMade = !everTouched(ctx.state, id);
+    return shelfLife(component, componentState(ctx.state, id), ctx.today, neverMade).tone === 'bad';
+  });
+  return anyReal ? 'blocked' : 'todo';
 }
 
 function daysSinceCooked(state: UserState, dishId: string, today: ISODate): number | null {
